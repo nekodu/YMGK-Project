@@ -34,8 +34,8 @@ def scrape_listings(url):
         price = f'{price_value} - {currency_symbol}'
 
         # Extract the product rating, if available
-        rating_element = listing.find('div', class_='wt-pr-xs-1')
-        rating = rating_element.find('span', class_='screen-reader-only').text.strip() if rating_element else 'N/A'
+        rating_element = listing.find('span', class_='wt-pr-xs-1')
+        rating = rating_element.text.strip() if rating_element else 'N/A'
 
         # Extract the product URL, if available
         url_element = listing.find('a', class_='listing-link')
