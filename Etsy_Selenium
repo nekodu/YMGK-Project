@@ -1,0 +1,105 @@
+import pandas as pd
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException
+import time
+
+baseurl = 'https://www.etsy.com/'
+user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
+
+# Set the headers to include the user agent
+options = webdriver.ChromeOptions()
+options.add_argument('--user-agent=' + user_agent)
+options.add_argument('--disable-extensions')
+options.add_argument('--profile-directory=Default')
+options.add_argument('--incognito')
+options.add_argument('--disable-plugins-discovery')
+options.add_argument('--start-maximized')
+
+# Set up the driver
+driver = webdriver.Chrome(options=options)
+
+# Start with the first page
+page_num = 1
+
+# Keep track of all the product data
+product_data = []
+
+# Keep track of the total time taken
+total_time = 0
+
+search_term = 'budget planner'
+search_term = search_term.replace(' ', '+')
+
+while True:
+    # Construct the URL for the current page
+    url = f'https://www.etsy.com/search?q={search_term}&ref=pagination&page={page_num}&currency=USD'
+
+    # Send a request to the page
+    try:
+        start_time = time.time()
+        driver.get(url)
+        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CLASS_NAME, "v2-listing-card")))
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+        total_time += elapsed_time
+        print(f"Page {page_num} scraped in {elapsed_time:.2f} seconds")
+    except TimeoutException:
+        # If the page takes too long to load, break out of the loop
+        print(f"Page {page_num} took too long to load, ending search")
+        break
+
+    # Find all the product listings on the page
+    page_listings = driver.find_elements_by_class_name('.wt-show-md')
+    print(page_listings)
+    # Count the number of listings found on the page
+    num_products_per_page = len(page_listings)
+
+    print(f'Number of products scraped: {num_products_per_page}')
+
+    # Extract the required data from each listing and append to the product_data list
+    for listing in page_listings:
+        # Extract the product title
+        currency = listing.find_element_by_class_name('currency-symbol').text.strip()
+        title = listing.find_element_by_class_name('v2-listing-card__title').text.strip()
+        price = listing.find_element_by_css_selector('span.currency-value').text.strip()
+        review_elem = listing.find_element_by_css_selector('span.wt-nudge-l-3')
+        review = review_elem.text.strip() if review_elem else 'N/A'
+        ad_etsy_seller = bool(listing.find_elements_by_css_selector('span:-soup-contains(" Advertisement by Etsy seller")'))
+        bestseller = bool(listing.find_elements_by_css_selector('span:-soup-contains("Bestseller")'))
+        starseller = bool(listing.find_elements_by_class_name('star-seller-badge-lavender-text-light'))
+        product_url = listing.find_element_by_css_selector('a.listing-link').get_attribute('href')
+
+        print(starseller)
+        print(title)
+        print(price)
+        print(review)
+        print(ad_etsy_seller)
+        print(bestseller)
+        print(currency)
+        print(product_url)
+
+        # Add the extracted data as a dictionary to the product_data list
+        product_data.append({
+            'StarSeller': starseller,
+            'Title': title,
+            'Price': price,
+            'Review': review,
+            'Etsy_AD': ad_etsy_seller,
+            'BestSeller': bestseller,
+            'Currency': currency,
+            'URL': product_url
+        })
+
+
+# Print the total time taken
+print(f"Total time taken: {total_time:.2f} seconds")
+
+# Create a Pandas DataFrame from the product_data list
+df = pd.DataFrame(product_data)
+
+# Print the DataFrame
+print(df)
